@@ -1,4 +1,4 @@
-import copy,importlib.util,json,sys,tempfile,unittest
+import copy,importlib.util,json,os,subprocess,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 import runtime,server_config
@@ -27,6 +27,13 @@ class ServerBootstrap(unittest.TestCase):
     self.assertEqual(first.config['clientToken'],'a'*64);self.assertNotEqual(first.server_id,second.server_id)
     runtime.Api.select_server(value);self.assertEqual(runtime.Api().account['token'],'first-server')
     runtime.Api.select_server(None);self.assertEqual(runtime.Api().account['token'],'embedded-only')
+ def test_embedding_cli_works_with_ascii_windows_console(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);profile=root/'server.json';profile.write_text(json.dumps(self.fixture()),encoding='utf-8')
+   script=Path(__file__).resolve().parents[1]/'scripts/embed_server.py'
+   result=subprocess.run([sys.executable,str(script),'--server',str(profile),'--output',str(root/'assets')],env={**os.environ,'PYTHONIOENCODING':'ascii'},capture_output=True)
+   self.assertEqual(result.returncode,0,result.stderr.decode('ascii',errors='replace'));result.stdout.decode('ascii')
+   self.assertTrue((root/'assets/profile.json').is_file())
  def test_custom_tun_exemption_is_one_public_ipv4(self):
   self.assertEqual(server_config.public_tun_address('8.8.8.8'),'8.8.8.8')
   for address in ['127.0.0.1','10.0.0.1','169.254.1.1','8.8.8.8;id','::1']:
